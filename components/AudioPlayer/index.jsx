@@ -1,17 +1,13 @@
-import { useState, useRef, useEffect, useCallback, useContext, useMemo } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useRef, useEffect, useContext } from 'react';
 import styles from './style.module.scss';
 
 import { FiMic, FiPlay } from 'react-icons/fi';
 import { Slider } from 'primereact/slider';
 
-import { FileUploader } from '../';
 import { AppContext } from '../../utils';
 
-const ReactMic = dynamic(
-    () => import('react-mic').then(module => module.ReactMic),
-    { ssr: false }
-)
+
+import Recorder from 'opus-recorder';
 
 const AudioPlayer = () => {
     const { socket, setFileTranslate } = useContext(AppContext);
@@ -29,15 +25,25 @@ const AudioPlayer = () => {
     useEffect(() => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             console.log('getUserMedia supported.');
-            navigator.mediaDevices.getUserMedia({ audio: true})
+            navigator.mediaDevices.getUserMedia({ audio: true })
                 .then((stream) => {
-                    setMediaRecorder(new MediaRecorder(stream))
+                    if (!Recorder.isRecordingSupported()) {
+                        alert('Recording features are not supported in your browser.')
+                    } else {
+                        setMediaRecorder(new Recorder({
+                            encoderPath: "workers/encoderWorker.min.js",
+                            encoderApplication: 2048,
+                            encoderSampleRate: 48000,
+                            streamPages: true
+                        }))
+                    }
+                    // setMediaRecorder(new MediaRecorder(stream))
                 })
                 .catch((err) => {
-                    console.log('The following getUserMedia error occured: ' + err);
+                    alert('The following getUserMedia error occured: ' + err);
                 });
         } else {
-            console.log('getUserMedia not supported on your browser!');
+            alert('getUserMedia not supported on your browser!');
         }
 
         return () => {
@@ -46,39 +52,42 @@ const AudioPlayer = () => {
     }, [])
 
     useEffect(() => {
+        console.log(mediaRecorder)
         if (mediaRecorder !== null) {
             mediaRecorder.audioChannels = 1;
 
             mediaRecorder.ondataavailable = function (e) {
-                let blob = new Blob([e.data], { 'type': 'audio/ogg; codecs=opus' });
-                setChuncks(prev => ([...prev, e.data]));
+                // console.log(e)
+                let blob = new Blob([e]);
+                // setChuncks(prev => ([...prev, e.data]));
                 socket.emit('voice', {
-                    blob
+                    blob: blob
                 })
             }
 
             mediaRecorder.onstop = async (e) => {
-                const blob = new Blob([...chuncks], { 'type': 'audio/ogg; codecs=opus' });
-                const file = new File([blob], 'test.ogg');
+                console.log(e)
+                // const blob = new Blob([...chuncks], { 'type': 'audio/ogg; codecs=opus' });
+                // const file = new File([blob], 'test.ogg');
 
-                const formData = new FormData();
+                // const formData = new FormData();
 
-                formData.append('audio', file);
-                formData.append('languageCode', 'ru-RU');
-                formData.append('audioChannelCount', 1);
-                formData.append('sampleRateHertz', 48000);
-                formData.append('encoding', 'WEBM_OPUS');
+                // formData.append('audio', file);
+                // formData.append('languageCode', 'ru-RU');
+                // formData.append('audioChannelCount', 1);
+                // formData.append('sampleRateHertz', 48000);
+                // formData.append('encoding', 'WEBM_OPUS');
 
-                const response = await fetch('http://localhost:3001/translate', {
-                    credentials: 'include',
-                    method: 'POST',
-                    body: formData
-                })
+                // const response = await fetch('http://localhost:3001/translate', {
+                //     credentials: 'include',
+                //     method: 'POST',
+                //     body: formData
+                // })
 
-                const json = await response.json();
+                // const json = await response.json();
 
-                setFileTranslate(json);
-                setChuncks([]);
+                // setFileTranslate(json);
+                // setChuncks([]);
             }
         }
     }, [mediaRecorder, chuncks])
@@ -86,15 +95,17 @@ const AudioPlayer = () => {
     useEffect(() => {
         if (mediaRecorder)
             if (record) {
-                mediaRecorder.start(1000);
-                console.log(mediaRecorder.state);
+                mediaRecorder.start()
+                // mediaRecorder.start(1000);
+                // console.log(mediaRecorder.state);
                 console.log("recorder started");
             } else {
-                mediaRecorder.stop();
-                const blob = new Blob(chuncks, { 'type': 'audio/ogg; codecs=opus' })
-                blob.blobURL = window.URL.createObjectURL(blob);
-                setRecordFile(blob)
-                console.log(mediaRecorder.state);
+                mediaRecorder.stop()
+                // mediaRecorder.stop();
+                // const blob = new Blob(chuncks, { 'type': 'audio/ogg; codecs=opus' })
+                // blob.blobURL = window.URL.createObjectURL(blob);
+                // setRecordFile(blob)
+                // console.log(mediaRecorder.state);
                 console.log("recorder stoped");
             }
     }, [record])

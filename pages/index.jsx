@@ -15,12 +15,13 @@ export default function Home() {
 	const [fileTranslate, setFileTranslate] = useState(null);
 
 	const initSocket = useCallback(() => {
-		const _socket = io(`http://localhost:3001`, { transports: ['websocket', 'polling', 'flashsocket'] });
+		const _socket = io(`http://localhost:8081`, { transports: ['websocket', 'polling', 'flashsocket'] });
 
 		_socket.on("connect", () => console.info("Sockets connected"));
 		_socket.on("disconnect", () => console.log("Sockets disconnected"));
 
 		_socket.on('voice-response', (response) => {
+			// console.log(response)
 			setTranslateStream(response);
 		})
 
@@ -49,7 +50,7 @@ export default function Home() {
 					<div className={styles.translate}>
 						<h3>Потоковый перевод:</h3>
 						<InputTextarea
-							value={translateStream ? translateStream.results[0].alternatives[0].transcript : ''}
+							value={translateStream ? translateStream.alternatives[0].text : ''}
 							className={styles.translate_textarea}
 						// onChange={(e) => setValue1(e.target.value)}
 						// rows={5}
